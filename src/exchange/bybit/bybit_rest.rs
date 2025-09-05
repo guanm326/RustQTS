@@ -4,7 +4,9 @@ use crate::exchange::bybit::response::{
     BybitOrderbookResponse, 
     BybitTickersResponse, 
     BybitAccInfoResponse,
-    BybitWalletBalanceResponse
+    BybitWalletBalanceResponse,
+    BybitPositionResponse,
+    BybitOpenOrdersResponse
 };
 
 use std::error::Error;
@@ -54,8 +56,6 @@ impl BybitRestClient {
 
         Ok(signature)
     }
-
-
 
     fn generate_bybit_signature(&self, query_string: &str) -> Result<String, Box<dyn Error>>{
 
@@ -112,45 +112,228 @@ impl BybitRestClient {
             Bybits API calls wallet balance, but internally we will handle this as 
             account info
         */
-        let account_type = account_type.unwrap_or("INVERSE");
+        let account_type = account_type.unwrap_or("UNIFIED");
 
         let mut url = format!("{}/v5/account/wallet-balance?accountType={}", self.base_url, account_type);
+
+        let mut query_params = format!("accountType={}", account_type);
+
 
         // Add optional coin parameter if provided
         if let Some(coin) = coin {
             url.push_str(&format!("&coin={}", coin));
+            query_params.push_str(&format!("&coin={}", coin));
         }
-
-        let payload = serde_json::json!({});
         
+        //println!("url String {}",url);
         let timestamp = chrono::Utc::now().timestamp_millis();
         let recv_window = "5000";
-        let query_string: String =  format!("{}{}{}", timestamp, self.api_key, recv_window);
 
-        let mut headers = self.get_bybit_auth_headers(&query_string,timestamp,recv_window)?;
+        let signature_string = format!("{}{}{}{}", timestamp, self.api_key, recv_window, query_params);
+        //println!("signature_string: {}", signature_string);
+
+        let signature = self.generate_bybit_signature(&signature_string)?;
+        let mut headers = self.get_bybit_auth_headers(&signature, timestamp, recv_window)?;
 
         let response = self.http_client.get(&url).headers(headers).send().await?;
 
 
         // Debug: Print the raw response text
-        let response_text = response.text().await?;
-        println!("Raw API response: {}", response_text);
+        //let response_text = response.text().await?;
+        //println!("Raw API response: {}", response_text);
         
         // Try to parse as JSON to see the structure
-        let json_value: serde_json::Value = serde_json::from_str(&response_text)?;
-        println!("Parsed JSON: {}", serde_json::to_string_pretty(&json_value)?);
+        //let json_value: serde_json::Value = serde_json::from_str(&response_text)?;
+        //println!("Parsed JSON: {}", serde_json::to_string_pretty(&json_value)?);
         
         // Then try to deserialize
-        let api_response: BybitWalletBalanceResponse = serde_json::from_str(&response_text)?;
+        //let api_response: BybitWalletBalanceResponse = serde_json::from_str(&response_text)?;
         
 
-        //let api_response: BybitWalletBalanceResponse = response.json::<BybitWalletBalanceResponse>().await?;
+        let api_response: BybitWalletBalanceResponse = response.json::<BybitWalletBalanceResponse>().await?;
 
         Ok(api_response)
     }
 
 
+    pub async fn get_positions(&self, category: &str, symbol: Option<&str>, base_coin: Option<&str>, settle_coin: Option<&str>, limit: Option<i32>, cursor: Option<&str>) -> Result<BybitPositionResponse, Box<dyn Error>> {
+        if symbol.is_none() && settle_coin.is_none() {
+            return Err("Either symbol or settle_coin must be provided".into());
+        }
+        
+        let endpoint = "/v5/position/list";
+        
+        // Build query parameters
+        let mut params = vec![("category".to_string(), category.to_string())];
+        
+        if let Some(symbol) = symbol {
+            params.push(("symbol".to_string(), symbol.to_string()));
+        }
+        if let Some(base_coin) = base_coin {
+            params.push(("baseCoin".to_string(), base_coin.to_string()));
+        }
+        if let Some(settle_coin) = settle_coin {
+            params.push(("settleCoin".to_string(), settle_coin.to_string()));
+        }
+        if let Some(limit) = limit {
+            params.push(("limit".to_string(), limit.to_string()));
+        }
+        if let Some(cursor) = cursor {
+            params.push(("cursor".to_string(), cursor.to_string()));
+        }
+        
+        // Generate timestamp and signature
+        let timestamp = chrono::Utc::now().timestamp_millis();
+        let recv_window = "5000";
+        
+        // Create query string for signature
+        let query_string = params
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("&");
+        
+        let sign_string = format!("{}{}{}{}", timestamp, self.api_key, recv_window, query_string);
+        let signature = self.generate_bybit_signature(&sign_string)?;
+        
+        // Build URL with query parameters
+        let url = format!("{}{}?{}", self.base_url, endpoint, query_string);
+        
+        // Create headers
+        let headers = self.get_bybit_auth_headers(&signature, timestamp, recv_window)?;
+        
+        // Make the request
+        let response = self
+            .http_client
+            .get(&url)
+            .headers(headers)
+            .send()
+            .await?;
+        
 
+
+        // Debug: Print the raw response text
+        //let response_text = response.text().await?;
+        //println!("Raw API response: {}", response_text);
+        
+        // Try to parse as JSON to see the structure
+        //let json_value: serde_json::Value = serde_json::from_str(&response_text)?;
+        //println!("Parsed JSON: {}", serde_json::to_string_pretty(&json_value)?);
+        
+        // Then try to deserialize
+        //let api_response: BybitPositionResponse = serde_json::from_str(&response_text)?;
+        
+
+        
+        let api_response: BybitPositionResponse = response.json::<BybitPositionResponse>().await?;
+        
+        Ok(api_response)
+    }
+
+    pub async fn get_open_orders(
+        &self, 
+        category: &str, 
+        symbol: Option<&str>, 
+        base_coin: Option<&str>, 
+        settle_coin: Option<&str>, 
+        order_id: Option<&str>, 
+        order_link_id: Option<&str>, 
+        open_only: Option<i32>, 
+        order_filter: Option<&str>, 
+        limit: Option<i32>, 
+        cursor: Option<&str>
+    ) -> Result<BybitOpenOrdersResponse, Box<dyn Error>> {
+        
+        // Validate required parameters based on category
+        match category {
+            "linear" => {
+                if symbol.is_none() && base_coin.is_none() && settle_coin.is_none() {
+                    return Err("For linear category, either symbol, baseCoin, or settleCoin must be provided".into());
+                }
+            },
+            "inverse" => {
+                if symbol.is_none() && base_coin.is_none() && settle_coin.is_none() {
+                    return Err("For inverse category, either symbol, baseCoin, or settleCoin must be provided".into());
+                }
+            },
+            "spot" => {
+                if symbol.is_none() && base_coin.is_none() {
+                    return Err("For spot category, either symbol or baseCoin must be provided".into());
+                }
+            },
+            "option" => {
+                // Option category doesn't require any specific parameters
+            },
+            _ => {
+                return Err("Invalid category. Must be one of: linear, inverse, spot, option".into());
+            }
+        }
+        
+        let endpoint = "/v5/order/realtime";
+        
+        // Build query parameters
+        let mut params = vec![("category".to_string(), category.to_string())];
+        
+        if let Some(symbol) = symbol {
+            params.push(("symbol".to_string(), symbol.to_string()));
+        }
+        if let Some(base_coin) = base_coin {
+            params.push(("baseCoin".to_string(), base_coin.to_string()));
+        }
+        if let Some(settle_coin) = settle_coin {
+            params.push(("settleCoin".to_string(), settle_coin.to_string()));
+        }
+        if let Some(order_id) = order_id {
+            params.push(("orderId".to_string(), order_id.to_string()));
+        }
+        if let Some(order_link_id) = order_link_id {
+            params.push(("orderLinkId".to_string(), order_link_id.to_string()));
+        }
+        if let Some(open_only) = open_only {
+            params.push(("openOnly".to_string(), open_only.to_string()));
+        }
+        if let Some(order_filter) = order_filter {
+            params.push(("orderFilter".to_string(), order_filter.to_string()));
+        }
+        if let Some(limit) = limit {
+            params.push(("limit".to_string(), limit.to_string()));
+        }
+        if let Some(cursor) = cursor {
+            params.push(("cursor".to_string(), cursor.to_string()));
+        }
+        
+        // Generate timestamp and signature
+        let timestamp = chrono::Utc::now().timestamp_millis();
+        let recv_window = "5000";
+        
+        // Create query string for signature
+        let query_string = params
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("&");
+        
+        let sign_string = format!("{}{}{}{}", timestamp, self.api_key, recv_window, query_string);
+        let signature = self.generate_bybit_signature(&sign_string)?;
+        
+        // Build URL with query parameters
+        let url = format!("{}{}?{}", self.base_url, endpoint, query_string);
+        
+        // Create headers
+        let headers = self.get_bybit_auth_headers(&signature, timestamp, recv_window)?;
+        
+        // Make the request
+        let response = self
+            .http_client
+            .get(&url)
+            .headers(headers)
+            .send()
+            .await?;
+        
+        let api_response: BybitOpenOrdersResponse = response.json::<BybitOpenOrdersResponse>().await?;
+        
+        Ok(api_response)
+    }
     // Public Data Endpoints
     pub async fn get_orderbook(&self, category: &str, symbol: &str) -> Result<BybitOrderbookResponse,Box<dyn Error>>{
 
