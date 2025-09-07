@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use crate::data_structure::Symbol;
-use crate::strategy::strategy_structs::{StrategyParams, HedgeParams, QuoteParams};
+use crate::strategy::strategy_structs::{StrategyParams, HedgeParams, QuoteParams, RunMode};
 
 /*
     Yaml Configuration Paramers For EE strategy
@@ -17,6 +17,7 @@ pub struct EEConfig {
     pub hedge_instrument: Symbol,
     pub hedge_params: HedgeParams,
     pub quote_params: QuoteParams,
+    pub run_mode: RunMode,
 }
 
 

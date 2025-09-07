@@ -5,6 +5,7 @@ mod data_structure;
 mod exchange;
 mod strategy;
 
+use crate::strategy::eye::ee::ElectronicEye;
 use crate::exchange::bybit::response::{
     BybitOrderbookResponse, 
     BybitTickersResponse, 
@@ -51,13 +52,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("=================================\n");
 
 
-    // test EEconfig
+    // Test EE Strategy
     if true{
         let config = EEConfig::from_yaml_file("config/ee_config.yaml")?;
-        println!("Config: {:?}", config);
+        let mut ee = ElectronicEye::new(config);
+        ee.run().await;
     }
 
 
+    // test EEconfig
+    if false{
+        let config = EEConfig::from_yaml_file("config/ee_config.yaml")?;
+        println!("Config: {:?}", config.strategy.strategy_name);
+    }
 
     // Test Sample Async tasks
     if false{

@@ -42,5 +42,11 @@ pub struct QuoteParams{
     pub margin_check_interval: u32,       // in milliseconds, 1 min = 60000ms
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RunMode{
+    pub debug: bool,                      // if this is true, we will not place any orders in market
+    pub risk_management_mode: bool,      // if we have this on, we actively monitor margins and cannot increase position
+}
+
 
 
