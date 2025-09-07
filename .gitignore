@@ -1,2 +1,5 @@
 /target
 /config
+/src/rust-bybit-main
+/src/.DS_Store
+/.idea
