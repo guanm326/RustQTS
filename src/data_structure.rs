@@ -16,7 +16,7 @@ pub struct APIKey {
     pub api_secret: String
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Symbol{
     pub symbol: String,
     pub exchange: Exchanges,

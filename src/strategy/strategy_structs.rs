@@ -5,13 +5,13 @@
 use serde::{Deserialize, Serialize};
 use crate::enums::StrategyTypes;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StrategyParams{
     pub strategy_name: String,
     pub strategy_type: StrategyTypes
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HedgeParams{
     pub hedge_ratio: f64,        // in usd dollar terms, for every $1 quote, how much should you short
     pub price_ratio: f64,        // price ratio parameter
@@ -21,7 +21,7 @@ pub struct HedgeParams{
     pub hedge_offset: f64,       // used when hedge_mode=2
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct QuoteParams{
     pub bid_on: bool,                    // Whether to turn on bid side only
     pub ask_on: bool,                     // Whether to turn on ask side only
@@ -42,7 +42,7 @@ pub struct QuoteParams{
     pub margin_check_interval: u32,       // in milliseconds, 1 min = 60000ms
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RunMode{
     pub debug: bool,                      // if this is true, we will not place any orders in market
     pub risk_management_mode: bool,      // if we have this on, we actively monitor margins and cannot increase position

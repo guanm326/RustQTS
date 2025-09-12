@@ -10,7 +10,7 @@ use crate::strategy::strategy_structs::{StrategyParams, HedgeParams, QuoteParams
 
 
 // Configure Structure
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EEConfig {
     pub strategy: StrategyParams,
     pub quote_instrument: Symbol,

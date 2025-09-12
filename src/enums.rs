@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum StrategyTypes {
     #[serde(rename = "SPREAD")]
     Spread,
@@ -13,7 +13,7 @@ pub enum StrategyTypes {
 }
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Exchanges {
     #[serde(rename = "bybit")]
     Bybit,
@@ -29,7 +29,7 @@ pub enum Exchanges {
 
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum InstrumentType {
     #[serde(rename = "SPOT")]
     Spot,
