@@ -20,10 +20,13 @@ use crate::exchange::binance::response::{
     BinanceOrderbookResponse, 
     BinanceTickerResponse, 
     BinanceTickersResponse, 
-    BinanceTickerItem
+    BinanceTickerItem,
+    BinancePositionResponse, 
+    BinancePositionItem
 };
 use crate::exchange::bybit::bybit_rest::BybitRestClient;
 use crate::exchange::bybit::bybit_ws::run_orderbook_example;
+use crate::exchange::binance::binance_ws::run_orderbook_example as run_binance_orderbook_example;
 use data_structure::{APIKey};
 use strategy::eye::params::EEConfig;
 
@@ -70,7 +73,7 @@ async fn test_bybit_rest()-> Result<(), Box<dyn Error>>{
 
 
 async fn test_bybit_ws()-> Result<(), Box<dyn Error>>{
-    println!("\n🌐 Testing WebSocket Connection...");
+    println!("\n🌐 Testing Bybit WebSocket Connection...");
         
     // Test WebSocket orderbook connection
     // This will connect to Bybit testnet and subscribe to BTCUSDT orderbook
@@ -79,6 +82,20 @@ async fn test_bybit_ws()-> Result<(), Box<dyn Error>>{
     // - Depth: 1, 50, 200, 500, 1000
     // - Testnet: true for testnet, false for mainnet
     run_orderbook_example("BTCUSDT", 1, false).await?;
+
+    Ok(())
+}
+
+async fn test_binance_ws()-> Result<(), Box<dyn Error>>{
+    println!("\n🌐 Testing Binance WebSocket Connection...");
+        
+    // Test WebSocket orderbook connection
+    // This will connect to Binance testnet and request BTCUSDT orderbook
+    // Change the parameters as needed:
+    // - Symbol: "BTCUSDT", "ETHUSDT", etc.
+    // - Limit: Some(5), Some(10), Some(20), Some(50), Some(100), Some(500), Some(1000), or None for default
+    // - Testnet: true for testnet, false for mainnet
+    run_binance_orderbook_example("BTCUSDT", Some(10), true).await?;
 
     Ok(())
 }
@@ -106,13 +123,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 
     // test binance rest
-    let mut bin_rest_client: BinanceRestClient = BinanceRestClient::new("".to_string(), "".to_string());
-    let ob_response: BinanceOrderbookResponse = bin_rest_client.get_orderbook("BTCUSDT", Some(10)).await?;
+    //let mut bin_rest_client: BinanceRestClient = BinanceRestClient::new("".to_string(), "".to_string());
+    //let ob_response: BinanceOrderbookResponse = bin_rest_client.get_orderbook("BTCUSDT", Some(10)).await?;
     //let tk_response: BinanceTickersResponse = bin_rest_client.get_tickers(None).await?;
 
-    println!("Orderbook: {:?}", ob_response);
+    //println!("Orderbook: {:?}", ob_response);
     //println!("Tickers: {:?}", tk_response.list);
 
+
+    // test binance rest private api
+    if false {
+        let json_content = fs::read_to_string(r"/Users/michaelguan326/Documents/dev/rust/RustQTS/config/binance_main.json")?;
+        let config: APIKey = serde_json::from_str(&json_content)?;
+        let bin_rest_client: BinanceRestClient = BinanceRestClient::new(config.api_key, config.api_secret);
+        let pos_response: BinancePositionResponse = bin_rest_client.get_positions(None).await?;
+        println!("Position Info: {:?}", pos_response.list);
+    }
+
+    // test binance websocket
+    if true {
+        test_binance_ws().await?;
+    }
 
     Ok(())
 }

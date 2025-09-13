@@ -12,7 +12,9 @@ use crate::exchange::binance::response::{
     BinanceOrderbookResponse, 
     BinanceTickerResponse, 
     BinanceTickersResponse, 
-    BinanceTickerItem
+    BinanceTickerItem,
+    BinancePositionResponse, 
+    BinancePositionItem
 };
 
 
@@ -34,6 +36,32 @@ impl BinanceRestClient {
             base_url: "https://fapi.binance.com".to_string(), 
             http_client:  Client::new()
         }
+    }
+
+    fn generate_binance_signature(&self, query_string: &str) -> Result<String, Box<dyn Error>> {
+        /*
+            Generate HMAC SHA256 signature for Binance API
+            Based on: https://binance-docs.github.io/apidocs/futures/en/#signed-endpoint-examples-for-post-fapi-v1-order-hmac-keys
+        */
+        
+        // Create HMAC-SHA256 instance with the API secret
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.api_secret.as_bytes())?;
+        mac.update(query_string.as_bytes());
+        let signature = hex::encode(mac.finalize().into_bytes());
+
+        Ok(signature)
+    }
+
+    pub fn get_binance_auth_headers(&self) -> Result<HeaderMap, Box<dyn Error>> {
+        /*
+            Generate authentication headers for Binance API
+        */
+        
+        let mut headers = HeaderMap::new();
+        headers.insert("X-MBX-APIKEY", HeaderValue::from_str(&self.api_key)?);
+        headers.insert("Content-Type", HeaderValue::from_static("application/x-www-form-urlencoded"));
+        
+        Ok(headers)
     }
 
 
@@ -132,6 +160,67 @@ impl BinanceRestClient {
                 }]
             })
         }
+    }
+
+    // Private Data Endpoints
+    pub async fn get_positions(&self, symbol: Option<&str>) -> Result<BinancePositionResponse, Box<dyn Error>> {
+        /*
+            Get current position information
+            https://binance-docs.github.io/apidocs/futures/en/#position-information-v3-user_data
+        */
+        
+        let mut url = format!("{}/fapi/v3/positionRisk", self.base_url);
+        
+        // Generate timestamp and recvWindow
+        let timestamp = chrono::Utc::now().timestamp_millis();
+        let recv_window = "5000";
+        
+        // Build query parameters
+        let mut query_params = vec![
+            ("timestamp".to_string(), timestamp.to_string()),
+            ("recvWindow".to_string(), recv_window.to_string()),
+        ];
+        
+        // Add optional symbol parameter if provided
+        if let Some(symbol) = symbol {
+            query_params.push(("symbol".to_string(), symbol.to_string()));
+        }
+        
+        // Create query string for signature
+        let query_string = query_params
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("&");
+        
+        // Generate signature
+        let signature = self.generate_binance_signature(&query_string)?;
+        
+        // Build final URL with signature
+        let final_url = format!("{}?{}&signature={}", url, query_string, signature);
+        
+        // Create headers
+        let headers = self.get_binance_auth_headers()?;
+        
+        // Make the request
+        let response = self
+            .http_client
+            .get(&final_url)
+            .headers(headers)
+            .send()
+            .await?;
+        
+
+
+        
+        // Parse response - Binance returns an array directly, not wrapped in a result object
+        let response_text = response.text().await?;
+        println!("Raw API response: {}", response_text);
+        let positions: Vec<BinancePositionItem> = serde_json::from_str(&response_text)?;
+        
+        Ok(BinancePositionResponse {
+            list: positions
+        })
     }
 
 }
