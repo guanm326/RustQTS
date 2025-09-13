@@ -15,6 +15,13 @@ use crate::exchange::bybit::response::{
     BybitOpenOrdersResponse
 
 };
+use crate::exchange::binance::binance_rest::BinanceRestClient;
+use crate::exchange::binance::response::{
+    BinanceOrderbookResponse, 
+    BinanceTickerResponse, 
+    BinanceTickersResponse, 
+    BinanceTickerItem
+};
 use crate::exchange::bybit::bybit_rest::BybitRestClient;
 use crate::exchange::bybit::bybit_ws::run_orderbook_example;
 use data_structure::{APIKey};
@@ -84,7 +91,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 
     // Test EE Strategy
-    if true{
+    if false{
         let config = EEConfig::from_yaml_file("config/ee_config.yaml")?;
         let mut ee = ElectronicEye::new(config);
         ee.run().await;
@@ -98,7 +105,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
 
+    // test binance rest
+    let mut bin_rest_client: BinanceRestClient = BinanceRestClient::new("".to_string(), "".to_string());
+    let ob_response: BinanceOrderbookResponse = bin_rest_client.get_orderbook("BTCUSDT", Some(10)).await?;
+    //let tk_response: BinanceTickersResponse = bin_rest_client.get_tickers(None).await?;
 
+    println!("Orderbook: {:?}", ob_response);
+    //println!("Tickers: {:?}", tk_response.list);
 
 
     Ok(())

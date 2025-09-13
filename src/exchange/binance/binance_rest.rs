@@ -8,7 +8,12 @@ use sha2::Sha256;
 use hex;
 
 // Import response structs
-use crate::exchange::binance::response::BinanceOrderbookResponse;
+use crate::exchange::binance::response::{
+    BinanceOrderbookResponse, 
+    BinanceTickerResponse, 
+    BinanceTickersResponse, 
+    BinanceTickerItem
+};
 
 
 pub struct BinanceRestClient {
@@ -62,8 +67,71 @@ impl BinanceRestClient {
         Ok(api_response)
     }
 
-    
-
-
+    pub async fn get_tickers(&self, symbol: Option<&str>) -> Result<BinanceTickersResponse, Box<dyn Error>> {
+        /*
+            Get 24hr ticker price change statistics
+            https://binance-docs.github.io/apidocs/futures/en/#24hr-ticker-price-change-statistics
+        */
+        
+        let mut url = format!("{}/fapi/v1/ticker/24hr", self.base_url);
+        
+        // Add optional symbol parameter if provided
+        if let Some(symbol) = symbol {
+            url.push_str(&format!("?symbol={}", symbol));
+        }
+        
+        // Query API Endpoint (no authentication required for public data)
+        let response = self.http_client.get(&url).send().await?;
+        
+        // Handle the response - Binance returns either a single object or array
+        let response_text = response.text().await?;
+        
+        // Try to parse as array first (multiple tickers)
+        if let Ok(tickers_array) = serde_json::from_str::<Vec<BinanceTickerResponse>>(&response_text) {
+            Ok(BinanceTickersResponse {
+                list: tickers_array.into_iter().map(|ticker| BinanceTickerItem {
+                    symbol: ticker.symbol,
+                    priceChange: ticker.priceChange,
+                    priceChangePercent: ticker.priceChangePercent,
+                    weightedAvgPrice: ticker.weightedAvgPrice,
+                    lastPrice: ticker.lastPrice,
+                    lastQty: ticker.lastQty,
+                    openPrice: ticker.openPrice,
+                    highPrice: ticker.highPrice,
+                    lowPrice: ticker.lowPrice,
+                    volume: ticker.volume,
+                    quoteVolume: ticker.quoteVolume,
+                    openTime: ticker.openTime,
+                    closeTime: ticker.closeTime,
+                    firstId: ticker.firstId,
+                    lastId: ticker.lastId,
+                    count: ticker.count,
+                }).collect()
+            })
+        } else {
+            // Try to parse as single object (single ticker)
+            let single_ticker: BinanceTickerResponse = serde_json::from_str(&response_text)?;
+            Ok(BinanceTickersResponse {
+                list: vec![BinanceTickerItem {
+                    symbol: single_ticker.symbol,
+                    priceChange: single_ticker.priceChange,
+                    priceChangePercent: single_ticker.priceChangePercent,
+                    weightedAvgPrice: single_ticker.weightedAvgPrice,
+                    lastPrice: single_ticker.lastPrice,
+                    lastQty: single_ticker.lastQty,
+                    openPrice: single_ticker.openPrice,
+                    highPrice: single_ticker.highPrice,
+                    lowPrice: single_ticker.lowPrice,
+                    volume: single_ticker.volume,
+                    quoteVolume: single_ticker.quoteVolume,
+                    openTime: single_ticker.openTime,
+                    closeTime: single_ticker.closeTime,
+                    firstId: single_ticker.firstId,
+                    lastId: single_ticker.lastId,
+                    count: single_ticker.count,
+                }]
+            })
+        }
+    }
 
 }
